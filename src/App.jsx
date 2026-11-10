@@ -6,34 +6,39 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RequireRole from './components/RequireRole';
 
 import Home from './pages/Home';
+import Equipments from './pages/Equipments';
+import EquipmentDetail from './pages/EquipmentDetail'; 
 import Login from './pages/Login';
 import Register from './pages/Register';
-
-const MyBorrowings = () => <div style={{ padding: '40px' }}><h1>📜 ประวัติการยืมของฉัน</h1></div>;
-const AdminDashboard = () => <div style={{ padding: '40px' }}><h1>🛡️ หน้าจัดการหลังบ้าน (Admin)</h1></div>;
+import MyBorrowings from './pages/MyBorrowings';
+import AdminDashboard from './pages/AdminDashboard';
 
 export default function App() {
   return (
     <AuthProvider>
       <Router>
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+        <div style={{ background: '#F8FAFC', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+          <Navbar />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/equipments" element={<Equipments />} />
+            <Route path="/equipment/:id" element={<EquipmentDetail />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          <Route path="/my-borrowings" element={
-            <ProtectedRoute>
-              <MyBorrowings />
-            </ProtectedRoute>
-          } />
+            <Route path="/my-borrowings" element={
+              <ProtectedRoute>
+                <MyBorrowings />
+              </ProtectedRoute>
+            } />
 
-          <Route path="/admin" element={
-            <RequireRole allowedRole="admin">
-              <AdminDashboard />
-            </RequireRole>
-          } />
-        </Routes>
+            <Route path="/admin" element={
+              <RequireRole allowedRole="admin">
+                <AdminDashboard />
+              </RequireRole>
+            } />
+          </Routes>
+        </div>
       </Router>
     </AuthProvider>
   );

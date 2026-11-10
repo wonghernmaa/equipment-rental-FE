@@ -13,13 +13,26 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   // ฟังก์ชันจำลองการเข้าสู่ระบบเพื่อเทสสิทธิ์
-  const login = (roleType) => {
-    if (roleType === 'admin') {
-      setUser({ role: 'admin', name: 'ท่านผู้ดูแลระบบ (Admin)' });
-    } else if (roleType === 'member') {
-      setUser({ role: 'member', name: 'กฤษฎา คงแก้ว (650710668)' });
-    }
-  };
+  const login = (username, password) => {
+  // บัญชีทดสอบ Member
+  if (username === 'ponza0191' && password === '1234') {
+    const memberUser = { username: 'ponza0191', name: 'กฤษฎา คงแก้ว', role: 'member' };
+    setUser(memberUser);
+    localStorage.setItem('user', JSON.stringify(memberUser));
+    return true;
+  }
+  
+  // บัญชีทดสอบ Admin
+  if (username === 'admin' && password === '1234') {
+    const adminUser = { username: 'admin', name: 'ผู้ดูแลระบบ', role: 'admin' };
+    setUser(adminUser);
+    localStorage.setItem('user', JSON.stringify(adminUser));
+    return true;
+  }
+
+  // กรณีอื่นๆ (ถ้ามีระบบ Backend จริงค่อยเชื่อมตรงนี้)
+  return false;
+};
 
   const logout = () => {
     setUser({ role: 'guest', name: 'ผู้เยี่ยมชม' });
