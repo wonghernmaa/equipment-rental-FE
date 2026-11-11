@@ -196,24 +196,30 @@ export default function Home() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
           {displayedEquipments.map((equipment) => (
             <div key={equipment.id} style={{ position: 'relative' }}>
-              {/* 🔍 โซนคลิกเฉพาะพื้นที่รูปภาพและรายละเอียดด้านบน เพื่อพาไปหน้าดูรายละเอียด */}
+              <EquipmentCard 
+                equipment={equipment} 
+                onBorrow={() => {
+                  if (!user || user.role === 'guest') {
+                    setAuthModalOpen(true);
+                  } else {
+                    setSelectedEquipment(equipment);
+                    setBorrowModalOpen(true);
+                  }
+                }} 
+              />
+              {/* 🔍 ทับคลิกเฉพาะโซนรูปภาพด้านบนให้วิ่งไปหน้าดีเทลได้ ส่วนปุ่มยืมด้านล่างทำงานอิสระ */}
               <div 
                 onClick={() => navigate(`/equipment/${equipment.id}`)}
-                style={{ cursor: 'pointer' }}
+                style={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  right: 0, 
+                  height: '62%', 
+                  cursor: 'pointer' 
+                }}
                 title="คลิกเพื่อดูรายละเอียดอุปกรณ์"
-              >
-                <EquipmentCard 
-                  equipment={equipment} 
-                  onBorrow={() => {
-                    if (!user || user.role === 'guest') {
-                      setAuthModalOpen(true);
-                    } else {
-                      setSelectedEquipment(equipment);
-                      setBorrowModalOpen(true);
-                    }
-                  }} 
-                />
-              </div>
+              />
             </div>
           ))}
         </div>
