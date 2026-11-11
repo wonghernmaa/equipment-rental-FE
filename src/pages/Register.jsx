@@ -5,12 +5,19 @@ export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [successMsg, setSuccessMsg] = useState(''); // State สำหรับข้อความสำเร็จแบบมินิมอล
   const navigate = useNavigate();
 
   const handleRegister = (e) => {
     e.preventDefault();
-    alert('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบด้วยบัญชีของคุณ');
-    navigate('/login');
+    
+    // จำลองการสมัครสำเร็จ และแสดงข้อความแบบมินิมอลในหน้าจอทันที
+    setSuccessMsg('สมัครสมาชิกสำเร็จ! กำลังพาท่านไปหน้าเข้าสู่ระบบ...');
+    
+    // หน่วงเวลา 1.5 วินาที แล้วพาไปหน้า Login
+    setTimeout(() => {
+      navigate('/login');
+    }, 1500);
   };
 
   return (
@@ -36,6 +43,27 @@ export default function Register() {
           <h2 style={{ color: '#0F172A', fontSize: '26px', margin: '10px 0 6px 0', fontWeight: '900' }}>สร้างบัญชีใหม่</h2>
           <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>ลงทะเบียนเพื่อใช้งานระบบยืมอุปกรณ์ khongunai</p>
         </div>
+
+        {/* กล่องแจ้งเตือนสมัครสมาชิกสำเร็จแบบมินิมอล */}
+        {successMsg && (
+          <div style={{
+            background: '#ECFDF5',
+            border: '1px solid #A7F3D0',
+            color: '#065F46',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            fontSize: '13px',
+            fontWeight: '700',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            textAlign: 'center',
+            justifyContent: 'center'
+          }}>
+            <span>🎉</span> {successMsg}
+          </div>
+        )}
 
         <form onSubmit={handleRegister}>
           <div style={{ marginBottom: '16px' }}>

@@ -5,16 +5,22 @@ import { useAuth } from '../auth/AuthContext';
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = (e) => {
     e.preventDefault();
+    setErrorMsg(''); // เคลียร์ข้อความแจ้งเตือนเก่า
+
     const success = login(username, password);
+
     if (success) {
+      // ล็อกอินสำเร็จ พุ่งเข้าหน้าแรกทันทีโดยไม่มีข้อความแจ้งเตือนใดๆ กวนใจ
       navigate('/');
     } else {
-      alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+      // ดักเฉพาะตอนรหัสผ่านหรือชื่อผู้ใช้ผิด แจ้งเตือนมินิมอลใต้หัวข้อ
+      setErrorMsg('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบใหม่อีกครั้ง');
     }
   };
 
@@ -41,6 +47,25 @@ export default function Login() {
           <h2 style={{ color: '#0F172A', fontSize: '26px', margin: '10px 0 6px 0', fontWeight: '900' }}>ยินดีต้อนรับกลับ</h2>
           <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>เข้าสู่ระบบ khongunai เพื่อติดตามและยืมอุปกรณ์</p>
         </div>
+
+        {/* กล่องแจ้งเตือนเฉพาะตอนรหัสผิด แบบมินิมอล */}
+        {errorMsg && (
+          <div style={{
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            color: '#DC2626',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            fontSize: '13px',
+            fontWeight: '600',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>❌</span> {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: '18px' }}>
@@ -105,7 +130,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* บัญชีทดสอบระบบ */}
         <div style={{ background: '#F1F5F9', padding: '14px', borderRadius: '12px', fontSize: '12px', color: '#475569', border: '1px solid #E2E8F0', marginBottom: '20px' }}>
           <strong style={{ color: '#0F172A', display: 'block', marginBottom: '4px' }}>🔑 บัญชีสำหรับทดสอบระบบ:</strong>
           <div>• Member: <code style={{ color: '#0284C7' }}>ponza0191</code> / <code style={{ color: '#0284C7' }}>1234</code></div>

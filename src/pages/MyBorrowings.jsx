@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
+
+// 🌟 นำเข้า UI States ที่เราสร้างไว้ (ปรับ Path ให้ตรงกับโฟลเดอร์ components ของคุณ)
+import { LoadingState, EmptyState } from '../components/UIStates';
 
 export default function MyBorrowings() {
   const { user } = useAuth();
+
+  // 🔄 เพิ่ม State สำหรับจำลองการโหลดข้อมูล
+  const [loading, setLoading] = useState(true);
 
   const [borrowings, setBorrowings] = useState([
     {
@@ -12,7 +18,8 @@ export default function MyBorrowings() {
       borrowDate: "2026-11-15",
       returnDate: "2026-11-18",
       purpose: "ถ่ายโปรเจกต์วิดีโอส่งอาจารย์",
-      status: "รออนุมัติ"
+      status: "รออนุมัติ",
+      rejectReason: ""
     },
     {
       id: 2,
@@ -21,14 +28,24 @@ export default function MyBorrowings() {
       borrowDate: "2026-11-10",
       returnDate: "2026-11-12",
       purpose: "อัดเสียงพอดแคสต์กิจกรรม",
-      status: "กำลังใช้งาน"
+      status: "ถูกปฏิเสธ",
+      rejectReason: "อุปกรณ์ชิ้นนี้ถูกจองคิวซ่อมบำรุงประจำสัปดาห์ ไม่สามารถให้ยืมได้ในเวลานี้ครับ"
     }
   ]);
 
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [selectedItemForReview, setSelectedItemForReview] = useState(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+
+  // จำลองการโหลดข้อมูลประวัติการยืม
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleCancel = (id) => {
     setBorrowings(borrowings.filter(item => item.id !== id));
@@ -43,26 +60,26 @@ export default function MyBorrowings() {
   const handleSubmitReview = (e) => {
     e.preventDefault();
     if (!comment.trim()) return;
-    alert(`บันทึกรีวิวสำหรับ "${selectedItemForReview.equipmentName}" เรียบร้อยแล้ว! ข้อมูลรีวิวจะไปแสดงในหน้ารายละเอียดอุปกรณ์`);
+
+    setBorrowings(borrowings.filter(item => item.id !== selectedItemForReview.id));
     setReviewModalOpen(false);
+    setSuccessModalOpen(true);
     setComment('');
   };
 
-  // นับสถิติต่างๆ
   const pendingCount = borrowings.filter(i => i.status === 'รออนุมัติ').length;
   const activeCount = borrowings.filter(i => i.status === 'กำลังใช้งาน').length;
-  const completedCount = borrowings.filter(i => i.status === 'คืนสำเร็จ').length;
+  const rejectedCount = borrowings.filter(i => i.status === 'ถูกปฏิเสธ').length;
 
   return (
     <div style={{ maxWidth: '1040px', margin: '40px auto', padding: '0 20px' }}>
       
-      {/* Header & Quick Stats */}
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ color: '#0F172A', fontSize: '28px', margin: '0 0 8px 0', fontWeight: '900' }}>
           📦 ประวัติการยืมอุปกรณ์ของฉัน
         </h2>
         <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>
-          ติดตามสถานะคำขอ คืนอุปกรณ์ และแชร์รีวิวประสบการณ์ใช้งาน
+          ติดตามสถานะคำขอ ตรวจสอบเหตุผลจากแอดมิน และจัดการอุปกรณ์ของคุณ
         </p>
       </div>
 
@@ -77,17 +94,19 @@ export default function MyBorrowings() {
           <h3 style={{ fontSize: '28px', color: '#0F172A', margin: '12px 0 0 0', fontWeight: '900' }}>{activeCount} รายการ</h3>
         </div>
         <div style={{ background: '#FFFFFF', padding: '20px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
-          <span style={{ fontSize: '13px', fontWeight: '700', color: '#15803D', background: '#DCFCE7', padding: '4px 10px', borderRadius: '20px' }}>✅ คืนสำเร็จแล้ว</span>
-          <h3 style={{ fontSize: '28px', color: '#0F172A', margin: '12px 0 0 0', fontWeight: '900' }}>{completedCount} รายการ</h3>
+          <span style={{ fontSize: '13px', fontWeight: '700', color: '#DC2626', background: '#FEE2E2', padding: '4px 10px', borderRadius: '20px' }}>❌ ถูกปฏิเสธ</span>
+          <h3 style={{ fontSize: '28px', color: '#0F172A', margin: '12px 0 0 0', fontWeight: '900' }}>{rejectedCount} รายการ</h3>
         </div>
       </div>
 
-      {/* รายการประวัติยืม */}
-      {borrowings.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', background: '#FFFFFF', borderRadius: '20px', border: '1px solid #E2E8F0', color: '#64748B' }}>
-          <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>📭</span>
-          <p style={{ fontSize: '16px', margin: 0 }}>ยังไม่มีประวัติการขอยืมอุปกรณ์</p>
-        </div>
+      {/* 🚀 การจัดการแสดงผลตามสถานะ Loading และ Empty State */}
+      {loading ? (
+        <LoadingState message="กำลังโหลดประวัติการยืมของคุณ..." />
+      ) : borrowings.length === 0 ? (
+        <EmptyState 
+          title="ยังไม่มีประวัติการขอยืมอุปกรณ์" 
+          description="คุณยังไม่ได้ทำรายการขอยืมอุปกรณ์ใดๆ ในระบบ ลองเลือกชมและยืมอุปกรณ์จากหน้าแค็ตตาล็อกได้เลยครับ" 
+        />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {borrowings.map((item) => (
@@ -95,7 +114,7 @@ export default function MyBorrowings() {
               background: '#FFFFFF',
               padding: '24px',
               borderRadius: '20px',
-              border: '1px solid #E2E8F0',
+              border: item.status === 'ถูกปฏิเสธ' ? '1px solid #FCA5A5' : '1px solid #E2E8F0',
               boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
               display: 'flex',
               justifyContent: 'space-between',
@@ -107,8 +126,8 @@ export default function MyBorrowings() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                   <h4 style={{ margin: 0, color: '#0F172A', fontSize: '18px', fontWeight: '800' }}>{item.equipmentName}</h4>
                   <span style={{
-                    background: item.status === 'รออนุมัติ' ? '#FEF3C7' : item.status === 'กำลังใช้งาน' ? '#E0F2FE' : '#DCFCE7',
-                    color: item.status === 'รออนุมัติ' ? '#D97706' : item.status === 'กำลังใช้งาน' ? '#0284C7' : '#15803D',
+                    background: item.status === 'รออนุมัติ' ? '#FEF3C7' : item.status === 'กำลังใช้งาน' ? '#E0F2FE' : item.status === 'คืนสำเร็จ' ? '#DCFCE7' : '#FEE2E2',
+                    color: item.status === 'รออนุมัติ' ? '#D97706' : item.status === 'กำลังใช้งาน' ? '#0284C7' : item.status === 'คืนสำเร็จ' ? '#15803D' : '#DC2626',
                     padding: '4px 12px',
                     borderRadius: '20px',
                     fontSize: '12px',
@@ -123,6 +142,13 @@ export default function MyBorrowings() {
                   <div>📅 <strong>กำหนดการ:</strong> {item.borrowDate} ถึง {item.returnDate}</div>
                 </div>
                 <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#64748B' }}>💬 <strong>วัตถุประสงค์:</strong> {item.purpose}</p>
+
+                {/* กล่องแสดงเหตุผลจากแอดมินกรณีถูกปฏิเสธ */}
+                {item.status === 'ถูกปฏิเสธ' && item.rejectReason && (
+                  <div style={{ marginTop: '12px', background: '#FEF2F2', border: '1px solid #FECACA', padding: '12px 16px', borderRadius: '12px', fontSize: '13px', color: '#DC2626', lineHeight: '1.5' }}>
+                    ❌ <strong>เหตุผลที่ไม่สามารถยืมได้ (จากแอดมิน):</strong> {item.rejectReason}
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -145,15 +171,12 @@ export default function MyBorrowings() {
                   </button>
                 )}
 
-                {item.status === 'คืนสำเร็จ' && (
+                {item.status === 'ถูกปฏิเสธ' && (
                   <button 
-                    onClick={() => {
-                      setSelectedItemForReview(item);
-                      setReviewModalOpen(true);
-                    }}
-                    style={{ background: '#16A34A', color: '#FFFFFF', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px', boxShadow: '0 4px 12px rgba(22, 163, 74, 0.2)' }}
+                    onClick={() => handleCancel(item.id)}
+                    style={{ background: '#F1F5F9', color: '#475569', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}
                   >
-                    ⭐ เขียนรีวิวอุปกรณ์
+                    ลบประวัติรายการนี้
                   </button>
                 )}
               </div>
@@ -162,45 +185,21 @@ export default function MyBorrowings() {
         </div>
       )}
 
-      {/* Modal เขียนรีวิว */}
-      {reviewModalOpen && (
+      {/* Success Modal ขอบคุณรีวิว */}
+      {successModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(6px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
-          <div style={{ background: '#FFFFFF', padding: '32px', borderRadius: '24px', maxWidth: '480px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            <h3 style={{ margin: '0 0 12px 0', color: '#0F172A', fontSize: '20px', fontWeight: '900' }}>✍️ เขียนรีวิว: {selectedItemForReview?.equipmentName}</h3>
-            
-            <form onSubmit={handleSubmitReview}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>ให้คะแนนความพึงพอใจ:</label>
-                <select value={rating} onChange={(e) => setRating(Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #CBD5E1', fontSize: '14px', background: '#F8FAFC' }}>
-                  <option value={5}>⭐⭐⭐⭐⭐ (5 ดาว - ดีเยี่ยม)</option>
-                  <option value={4}>⭐⭐⭐⭐ (4 ดาว - ดีมาก)</option>
-                  <option value={3}>⭐⭐⭐ (3 ดาว - ปานกลาง)</option>
-                  <option value={2}>⭐⭐ (2 ดาว - พอใช้)</option>
-                  <option value={1}>⭐ (1 ดาว - ควรปรับปรุง)</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>ความคิดเห็นเพิ่มเติม:</label>
-                <textarea 
-                  rows="4" 
-                  placeholder="แชร์ความรู้สึกเกี่ยวกับการใช้งาน สภาพอุปกรณ์..." 
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', background: '#F8FAFC', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button type="button" onClick={() => setReviewModalOpen(false)} style={{ background: '#F1F5F9', color: '#475569', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
-                  ยกเลิก
-                </button>
-                <button type="submit" style={{ background: 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)', color: '#FFFFFF', border: 'none', padding: '10px 24px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)' }}>
-                  ส่งรีวิว
-                </button>
-              </div>
-            </form>
+          <div style={{ background: '#FFFFFF', padding: '36px', borderRadius: '24px', maxWidth: '400px', width: '100%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>💖</span>
+            <h3 style={{ margin: '0 0 8px 0', color: '#0F172A', fontSize: '22px', fontWeight: '900' }}>ขอบคุณสำหรับรีวิวครับ!</h3>
+            <p style={{ color: '#64748B', fontSize: '14px', margin: '0 0 24px 0', lineHeight: '1.6' }}>
+              ความคิดเห็นของคุณถูกบันทึกและนำไปแสดงในหน้ารายละเอียดอุปกรณ์เรียบร้อยแล้ว
+            </p>
+            <button 
+              onClick={() => setSuccessModalOpen(false)}
+              style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #0284C7 0%, #38BDF8 100%)', color: '#FFFFFF', border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 8px 20px rgba(56, 189, 248, 0.3)' }}
+            >
+              ตกลง
+            </button>
           </div>
         </div>
       )}

@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { mockEquipments } from '../data/mockEquipments';
 import EquipmentCard from '../components/EquipmentCard';
+import AuthModal from '../components/AuthModal';
+import BorrowModal from '../components/BorrowModal';
 
 export default function Home() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [heroSearch, setHeroSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('ทั้งหมด');
+
+  // Modal States สำหรับจัดการการยืม
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [borrowModalOpen, setBorrowModalOpen] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState(null);
 
   // ฟังก์ชันค้นหาจาก Hero
   const handleHeroSearchSubmit = (e) => {
@@ -61,7 +70,7 @@ export default function Home() {
             fontWeight: '800',
             marginBottom: '20px'
           }}>
-            📍 KHONGUNAI - ONLINE RENTAL SYSTEM
+            📦 KHONGUNAI - ONLINE RENTAL SYSTEM
           </div>
 
           <h1 style={{ fontSize: '42px', lineHeight: '1.2', margin: '0 0 16px 0', fontWeight: '900', letterSpacing: '-0.5px' }}>
@@ -120,13 +129,12 @@ export default function Home() {
           </form>
         </div>
 
-        {/* ตกแต่งกราฟิกพื้นหลัง */}
         <div style={{ position: 'absolute', right: '-20px', bottom: '-20px', fontSize: '240px', opacity: '0.08', pointerEvents: 'none', userSelect: 'none' }}>
           📦
         </div>
       </div>
 
-      {/* 🗂️ 2. Interactive Category Cards (การ์ดเลือกหมวดหมู่แบบกดสลับได้ทันที) */}
+      {/* 🗂️ 2. Interactive Category Cards */}
       <div style={{ marginBottom: '40px' }}>
         <div style={{ marginBottom: '20px' }}>
           <h3 style={{ fontSize: '22px', color: '#0F172A', margin: '0 0 6px 0', fontWeight: '800' }}>
@@ -166,7 +174,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 🔥 3. Section แสดงรายการอุปกรณ์ตามหมวดหมู่ที่กดเลือก */}
+      {/* 🔥 3. Section แสดงรายการอุปกรณ์ตามหมวดหมู่ */}
       <div style={{ marginBottom: '48px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
@@ -187,14 +195,31 @@ export default function Home() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
           {displayedEquipments.map((equipment) => (
-            <div key={equipment.id} onClick={() => navigate(`/equipment/${equipment.id}`)} style={{ cursor: 'pointer' }}>
-              <EquipmentCard equipment={equipment} onBorrow={() => navigate(`/equipment/${equipment.id}`)} />
+            <div key={equipment.id} style={{ position: 'relative' }}>
+              {/* 🔍 โซนคลิกเฉพาะพื้นที่รูปภาพและรายละเอียดด้านบน เพื่อพาไปหน้าดูรายละเอียด */}
+              <div 
+                onClick={() => navigate(`/equipment/${equipment.id}`)}
+                style={{ cursor: 'pointer' }}
+                title="คลิกเพื่อดูรายละเอียดอุปกรณ์"
+              >
+                <EquipmentCard 
+                  equipment={equipment} 
+                  onBorrow={() => {
+                    if (!user || user.role === 'guest') {
+                      setAuthModalOpen(true);
+                    } else {
+                      setSelectedEquipment(equipment);
+                      setBorrowModalOpen(true);
+                    }
+                  }} 
+                />
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 🛠️ 4. Interactive How It Works (ขั้นตอนการยืม 3 ขั้นตอนง่ายๆ) */}
+      {/* 🛠️ 4. Interactive How It Works */}
       <div style={{ 
         background: '#FFFFFF', 
         padding: '40px', 
@@ -233,6 +258,10 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Modals สำหรับจัดการการยืมและเข้าสู่ระบบ */}
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      <BorrowModal isOpen={borrowModalOpen} onClose={() => setBorrowModalOpen(false)} equipment={selectedEquipment} />
 
     </div>
   );

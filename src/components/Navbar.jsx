@@ -9,7 +9,6 @@ export default function Navbar() {
 
   const isActive = (path) => location.pathname === path;
 
-  // สไตล์สำหรับเมนู Active แบบ Glow Pill (ไม่ใช้ขีดเส้นใต้)
   const navLinkStyle = (path) => ({
     color: isActive(path) ? '#38BDF8' : '#94A3B8',
     background: isActive(path) ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
@@ -40,7 +39,7 @@ export default function Navbar() {
       {/* Brand Logo */}
       <div style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '-0.5px' }}>
         <Link to="/" style={{ color: '#FFFFFF', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '26px' }}>📍</span>
+          <span style={{ fontSize: '26px' }}>📦</span>
           <span>khong<span style={{ color: '#38BDF8', textShadow: '0 0 12px rgba(56, 189, 248, 0.6)' }}>unai</span></span>
           <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '400', background: 'rgba(255, 255, 255, 0.08)', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
             ของอยู่ไหน?
@@ -108,9 +107,25 @@ export default function Navbar() {
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: '12px' }}>
-            <span style={{ fontSize: '13px', color: '#E2E8F0', background: 'rgba(255, 255, 255, 0.05)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            {/* 👤 เปลี่ยนเป็น <Link to="/profile"> เพื่อกดเข้าหน้าโปรไฟล์ได้แล้ว */}
+            <Link 
+              to="/profile" 
+              style={{
+                fontSize: '13px',
+                color: isActive('/profile') ? '#38BDF8' : '#E2E8F0',
+                background: isActive('/profile') ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                border: isActive('/profile') ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255,255,255,0.1)',
+                textDecoration: 'none',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+                boxShadow: isActive('/profile') ? '0 0 12px rgba(56, 189, 248, 0.2)' : 'none'
+              }}
+            >
               👤 {user.name || user.username} (<strong style={{ color: '#38BDF8' }}>{user.role}</strong>)
-            </span>
+            </Link>
+
             <button 
               onClick={() => { logout(); navigate('/'); }}
               style={{
