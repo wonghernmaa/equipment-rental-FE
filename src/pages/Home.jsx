@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { mockEquipments } from '../data/mockEquipments';
+import useEquipments from '../hooks/useEquipments';
+import { LoadingState, EmptyState, ErrorState } from '../components/UIStates';
 import EquipmentCard from '../components/EquipmentCard';
 import AuthModal from '../components/AuthModal';
 import BorrowModal from '../components/BorrowModal';
 
 export default function Home() {
-  const { user } = useAuth();
+  const { canBorrow } = useAuth();
   const navigate = useNavigate();
+  const { items: equipments, loading, error, reload } = useEquipments();
   const [heroSearch, setHeroSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('ทั้งหมด');
 
@@ -36,7 +38,7 @@ export default function Home() {
   ];
 
   // กรองอุปกรณ์ตามหมวดหมู่ที่เลือกบนหน้า Home
-  const displayedEquipments = mockEquipments.filter(item => {
+  const displayedEquipments = equipments.filter(item => {
     if (activeCategory === 'ทั้งหมด') return true;
     return item.category === activeCategory;
   });
@@ -182,7 +184,7 @@ export default function Home() {
               🔥 รายการอุปกรณ์ ({activeCategory})
             </h3>
             <p style={{ margin: 0, color: '#64748B', fontSize: '14px' }}>
-              แสดงอุปกรณ์ทั้งหมด {displayedEquipments.length} รายการที่พร้อมให้ส่งคำขอยืม
+              แสดงอุปกรณ์ทั้งหมด {loading ? '-' : displayedEquipments.length} รายการที่พร้อมให้ส่งคำขอยืม
             </p>
           </div>
           <button 
@@ -193,13 +195,20 @@ export default function Home() {
           </button>
         </div>
 
+        {loading ? (
+          <LoadingState message="กำลังโหลดรายการอุปกรณ์..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={() => reload()} />
+        ) : displayedEquipments.length === 0 ? (
+          <EmptyState title="ยังไม่มีอุปกรณ์ในหมวดนี้" description="ลองเลือกหมวดหมู่อื่น หรือดูอุปกรณ์ทั้งหมดในคลัง" />
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
           {displayedEquipments.map((equipment) => (
             <div key={equipment.id} style={{ position: 'relative' }}>
               <EquipmentCard 
                 equipment={equipment} 
                 onBorrow={() => {
-                  if (!user || user.role === 'guest') {
+                  if (!canBorrow) {
                     setAuthModalOpen(true);
                   } else {
                     setSelectedEquipment(equipment);
@@ -223,6 +232,7 @@ export default function Home() {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {/* 🛠️ 4. Interactive How It Works */}
@@ -267,7 +277,7 @@ export default function Home() {
 
       {/* Modals สำหรับจัดการการยืมและเข้าสู่ระบบ */}
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
-      <BorrowModal isOpen={borrowModalOpen} onClose={() => setBorrowModalOpen(false)} equipment={selectedEquipment} />
+      <BorrowModal isOpen={borrowModalOpen} onClose={() => setBorrowModalOpen(false)} equipment={selectedEquipment} onSuccess={() => reload({ silent: true })} />
 
     </div>
   );

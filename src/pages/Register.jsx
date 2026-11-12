@@ -1,23 +1,41 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [successMsg, setSuccessMsg] = useState(''); // State สำหรับข้อความสำเร็จแบบมินิมอล
+  const [role, setRole] = useState('member'); // BE รับเฉพาะ member / guest (admin ตั้งผ่าน SQL เท่านั้น)
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { register, login } = useAuth();
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    
-    // จำลองการสมัครสำเร็จ และแสดงข้อความแบบมินิมอลในหน้าจอทันที
-    setSuccessMsg('สมัครสมาชิกสำเร็จ! กำลังพาท่านไปหน้าเข้าสู่ระบบ...');
-    
-    // หน่วงเวลา 1.5 วินาที แล้วพาไปหน้า Login
-    setTimeout(() => {
-      navigate('/login');
-    }, 1500);
+    if (submitting) return;
+    setErrorMsg('');
+    if (password.length < 8) {
+      setErrorMsg('รหัสผ่านต้องยาว 8 ตัวอักษรขึ้นไป');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await register({ email: email.trim(), password, displayName: name.trim(), role });
+    } catch (err) {
+      setErrorMsg(err.message); // เช่น EMAIL_TAKEN, BAD_EMAIL
+      setSubmitting(false);
+      return;
+    }
+    setSuccessMsg('สมัครสมาชิกสำเร็จ! กำลังเข้าสู่ระบบ...');
+    try {
+      await login(email.trim(), password); // สมัครเสร็จเข้าสู่ระบบให้เลย
+      navigate('/', { replace: true });
+    } catch {
+      setTimeout(() => navigate('/login'), 1200);
+    }
   };
 
   return (
@@ -65,6 +83,12 @@ export default function Register() {
           </div>
         )}
 
+        {errorMsg && (
+          <div role="alert" style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', padding: '12px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: '600', marginBottom: '20px' }}>
+            ❌ {errorMsg}
+          </div>
+        )}
+
         <form onSubmit={handleRegister}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>ชื่อ-นามสกุล</label>
@@ -88,10 +112,11 @@ export default function Register() {
           </div>
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>อีเมล หรือ Username</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>อีเมล</label>
             <input 
-              type="text"
-              placeholder="username หรือ email@example.com"
+              type="email"
+              autoComplete="email"
+              placeholder="email@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{
@@ -108,10 +133,24 @@ export default function Register() {
             />
           </div>
 
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>ประเภทบัญชี</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', background: '#F8FAFC', boxSizing: 'border-box', cursor: 'pointer' }}
+            >
+              <option value="member">สมาชิก (Member) — ยืมอุปกรณ์ได้</option>
+              <option value="guest">ผู้เยี่ยมชม (Guest) — ดูอุปกรณ์ได้อย่างเดียว</option>
+            </select>
+          </div>
+
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>รหัสผ่าน</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>รหัสผ่าน (อย่างน้อย 8 ตัวอักษร)</label>
             <input 
               type="password"
+              autoComplete="new-password"
+              minLength={8}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -131,7 +170,9 @@ export default function Register() {
 
           <button 
             type="submit"
+            disabled={submitting}
             style={{
+              opacity: submitting ? 0.7 : 1,
               width: '100%',
               padding: '14px',
               background: 'linear-gradient(135deg, #0284C7 0%, #38BDF8 100%)',
@@ -145,7 +186,7 @@ export default function Register() {
               marginBottom: '20px'
             }}
           >
-            สมัครสมาชิก
+            {submitting ? 'กำลังสมัคร...' : 'สมัครสมาชิก'}
           </button>
         </form>
 

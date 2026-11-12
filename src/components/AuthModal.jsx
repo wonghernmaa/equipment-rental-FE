@@ -1,8 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 
 export default function AuthModal({ isOpen, onClose }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isGuestAccount = !!user; // login แล้วแต่ role=guest ยืมไม่ได้
 
   if (!isOpen) return null;
 
@@ -26,10 +29,12 @@ export default function AuthModal({ isOpen, onClose }) {
         textAlign: 'center',
         boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
       }}>
-        <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔒</div>
-        <h3 style={{ margin: '0 0 8px 0', color: '#1E293B', fontSize: '20px' }}>กรุณาเข้าสู่ระบบก่อน</h3>
+        <div style={{ fontSize: '40px', marginBottom: '12px' }}>{isGuestAccount ? '👀' : '🔒'}</div>
+        <h3 style={{ margin: '0 0 8px 0', color: '#1E293B', fontSize: '20px' }}>{isGuestAccount ? 'บัญชีผู้เยี่ยมชมยืมอุปกรณ์ไม่ได้' : 'กรุณาเข้าสู่ระบบก่อน'}</h3>
         <p style={{ color: '#64748B', fontSize: '14px', marginBottom: '24px' }}>
-          คุณต้องเข้าสู่ระบบหรือสมัครสมาชิกเพื่อทำรายการยืมอุปกรณ์
+          {isGuestAccount
+            ? 'บัญชี Guest ดูรายการอุปกรณ์ได้อย่างเดียว หากต้องการยืม กรุณาออกจากระบบแล้วสมัครสมาชิกแบบ Member'
+            : 'คุณต้องเข้าสู่ระบบหรือสมัครสมาชิกเพื่อทำรายการยืมอุปกรณ์'}
         </p>
 
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -46,9 +51,9 @@ export default function AuthModal({ isOpen, onClose }) {
               cursor: 'pointer'
             }}
           >
-            ยกเลิก
+            {isGuestAccount ? 'ตกลง' : 'ยกเลิก'}
           </button>
-          <button
+          {!isGuestAccount && <button
             onClick={() => { onClose(); navigate('/login'); }}
             style={{
               flex: 1,
@@ -62,7 +67,7 @@ export default function AuthModal({ isOpen, onClose }) {
             }}
           >
             ไปหน้าเข้าสู่ระบบ
-          </button>
+          </button>}
         </div>
       </div>
     </div>

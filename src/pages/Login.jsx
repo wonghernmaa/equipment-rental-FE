@@ -1,26 +1,35 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useAuth, SESSION_EXPIRED_KEY } from '../auth/AuthContext';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(() => {
+    // ถูกเด้งออกเพราะตั๋วหมดอายุ (ตั๋วจาก BE อายุ 1 ชั่วโมง)
+    if (sessionStorage.getItem(SESSION_EXPIRED_KEY)) {
+      sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+      return 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง';
+    }
+    return '';
+  });
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setErrorMsg(''); // เคลียร์ข้อความแจ้งเตือนเก่า
-
-    const success = login(username, password);
-
-    if (success) {
-      // ล็อกอินสำเร็จ พุ่งเข้าหน้าแรกทันทีโดยไม่มีข้อความแจ้งเตือนใดๆ กวนใจ
-      navigate('/');
-    } else {
-      // ดักเฉพาะตอนรหัสผ่านหรือชื่อผู้ใช้ผิด แจ้งเตือนมินิมอลใต้หัวข้อ
-      setErrorMsg('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบใหม่อีกครั้ง');
+    if (submitting) return;
+    setErrorMsg('');
+    setSubmitting(true);
+    try {
+      await login(email.trim(), password);
+      // กลับไปหน้าที่ตั้งใจจะเข้า (ถ้าถูกเด้งมาจากหน้าที่ต้อง login) ไม่งั้นไปหน้าแรก
+      navigate((location.state && location.state.from) || '/', { replace: true });
+    } catch (err) {
+      setErrorMsg(err.message);
+      setSubmitting(false);
     }
   };
 
@@ -69,12 +78,13 @@ export default function Login() {
 
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: '18px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>ชื่อผู้ใช้งาน (Username)</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>อีเมล</label>
             <input 
-              type="text"
-              placeholder="เช่น ponza0191 หรือ admin"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -93,6 +103,7 @@ export default function Login() {
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>รหัสผ่าน (Password)</label>
             <input 
               type="password"
+              autoComplete="current-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -112,7 +123,9 @@ export default function Login() {
 
           <button 
             type="submit"
+            disabled={submitting}
             style={{
+              opacity: submitting ? 0.7 : 1,
               width: '100%',
               padding: '14px',
               background: 'linear-gradient(135deg, #0284C7 0%, #38BDF8 100%)',
@@ -126,15 +139,9 @@ export default function Login() {
               marginBottom: '20px'
             }}
           >
-            เข้าสู่ระบบ
+            {submitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
         </form>
-
-        <div style={{ background: '#F1F5F9', padding: '14px', borderRadius: '12px', fontSize: '12px', color: '#475569', border: '1px solid #E2E8F0', marginBottom: '20px' }}>
-          <strong style={{ color: '#0F172A', display: 'block', marginBottom: '4px' }}>🔑 บัญชีสำหรับทดสอบระบบ:</strong>
-          <div>• Member: <code style={{ color: '#0284C7' }}>ponza0191</code> / <code style={{ color: '#0284C7' }}>1234</code></div>
-          <div>• Admin: <code style={{ color: '#0284C7' }}>admin</code> / <code style={{ color: '#0284C7' }}>1234</code></div>
-        </div>
 
         <div style={{ textAlign: 'center', fontSize: '14px', color: '#64748B' }}>
           ยังไม่มีบัญชีใช้งานใช่ไหม? <Link to="/register" style={{ color: '#0284C7', fontWeight: '700', textDecoration: 'none' }}>สมัครสมาชิก</Link>

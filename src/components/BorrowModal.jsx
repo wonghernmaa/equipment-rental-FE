@@ -1,145 +1,113 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import * as api from '../api';
+import { MAX_BORROW_QTY } from '../constants';
+import { todayTH, addDays } from '../utils/format';
+import Modal from './Modal';
+import Notice from './Notice';
+import { labelStyle, inputStyle, btnPrimary, btnGhost } from './formStyles';
 
-export default function BorrowModal({ isOpen, onClose, equipment }) {
-  const [borrowDate, setBorrowDate] = useState('');
-  const [returnDate, setReturnDate] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [purpose, setPurpose] = useState('');
-  const [error, setError] = useState('');
-
+// ฟอร์มขอยืม -> POST /api/borrow-requests (สถานะ pending รอแอดมินอนุมัติ ยังไม่หักสต็อก)
+// กฎของ BE: วันที่ยืมต้องไม่ใช่อดีต, วันที่คืนต้องหลังวันที่ยืม, จำนวนต้องไม่เกินที่ว่าง
+export default function BorrowModal({ isOpen, onClose, equipment, onSuccess }) {
   if (!isOpen || !equipment) return null;
+  // key ทำให้ฟอร์มรีเซ็ตทุกครั้งที่เปิด/เปลี่ยนอุปกรณ์
+  return <BorrowForm key={equipment.id} equipment={equipment} onClose={onClose} onSuccess={onSuccess} />;
+}
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError('');
+function BorrowForm({ equipment, onClose, onSuccess }) {
+  const navigate = useNavigate();
+  const today = todayTH();
+  const maxQty = Math.max(1, Math.min(MAX_BORROW_QTY, equipment.availableQty));
 
-    const qtyNum = parseInt(quantity);
+  const [borrowDate, setBorrowDate] = useState(today);
+  const [returnDate, setReturnDate] = useState(addDays(today, 1));
+  const [quantity, setQuantity] = useState(1);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
 
-    // ตรวจสอบเงื่อนไขจำนวนที่ยืม
-    if (qtyNum > 3) {
-      setError('จำกัดการยืมสูงสุดไม่เกิน 3 ชิ้นต่อครั้งครับ');
-      return;
-    }
-
-    if (qtyNum > equipment.availableStock) {
-      setError(`อุปกรณ์นี้เหลือให้ยืมแค่ ${equipment.availableStock} ชิ้นเท่านั้น`);
-      return;
-    }
-
-    if (qtyNum <= 0) {
-      setError('กรุณาระบุจำนวนที่ต้องการยืมให้ถูกต้อง');
-      return;
-    }
-
-    alert(`ทำรายการยืม "${equipment.name}" จำนวน ${qtyNum} ชิ้น สำเร็จ!\nกำหนดคืน: ${returnDate}`);
-    onClose();
+  const handleBorrowDate = (v) => {
+    setBorrowDate(v);
+    if (v && returnDate <= v) setReturnDate(addDays(v, 1)); // วันคืนต้องหลังวันยืม
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError('');
+    const qty = Number(quantity);
+
+    if (!Number.isInteger(qty) || qty <= 0) return setError('กรุณาระบุจำนวนที่ต้องการยืมให้ถูกต้อง');
+    if (qty > MAX_BORROW_QTY) return setError(`จำกัดการยืมสูงสุดไม่เกิน ${MAX_BORROW_QTY} ชิ้นต่อครั้ง`);
+    if (qty > equipment.availableQty) return setError(`อุปกรณ์นี้เหลือให้ยืมแค่ ${equipment.availableQty} ชิ้นเท่านั้น`);
+    if (!borrowDate || borrowDate < today) return setError('วันที่ยืมต้องไม่ใช่วันที่ผ่านมาแล้ว');
+    if (!returnDate || returnDate <= borrowDate) return setError('วันที่คืนต้องอยู่หลังวันที่ยืม');
+
+    setSubmitting(true);
+    try {
+      await api.createBorrow({ equipmentId: equipment.id, quantity: qty, borrowDate, returnDate });
+      setDone(true);
+      if (onSuccess) onSuccess();
+    } catch (err) {
+      setError(err.message); // เช่น OUT_OF_STOCK, BAD_DATE, FORBIDDEN
+      if (err.code === 'OUT_OF_STOCK' && onSuccess) onSuccess(); // ให้รายการรีเฟรชสต็อกล่าสุด
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <Modal onClose={onClose} maxWidth={420}>
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>🎉</span>
+          <h3 style={{ margin: '0 0 8px 0', color: '#0F172A', fontSize: '20px', fontWeight: '900' }}>ส่งคำขอยืมเรียบร้อย</h3>
+          <p style={{ color: '#64748B', fontSize: '14px', margin: '0 0 24px 0', lineHeight: 1.6 }}>
+            คำขอยืม <strong style={{ color: '#0F172A' }}>{equipment.name}</strong> อยู่ในสถานะรออนุมัติ
+            ติดตามผลได้ที่หน้าประวัติการยืม
+          </p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="button" onClick={onClose} style={{ ...btnGhost, flex: 1 }}>ปิด</button>
+            <button type="button" onClick={() => { onClose(); navigate('/my-borrowings'); }} style={{ ...btnPrimary, flex: 1 }}>ดูประวัติการยืม</button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(15, 23, 42, 0.5)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: '#FFFFFF',
-        padding: '28px',
-        borderRadius: '16px',
-        maxWidth: '450px',
-        width: '90%',
-        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
-      }}>
-        <h3 style={{ margin: '0 0 4px 0', color: '#1E293B', fontSize: '18px' }}>📋 ฟอร์มขอยืมอุปกรณ์</h3>
-        <p style={{ color: '#2563EB', fontSize: '14px', fontWeight: '600', marginBottom: '16px' }}>
-          {equipment.name} <span style={{ color: '#64748B', fontWeight: 'normal', fontSize: '12px' }}>(คงเหลือ: {equipment.availableStock} ชิ้น)</span>
-        </p>
+    <Modal onClose={onClose} busy={submitting} maxWidth={450}>
+      <h3 style={{ margin: '0 0 4px 0', color: '#1E293B', fontSize: '18px' }}>📋 ฟอร์มขอยืมอุปกรณ์</h3>
+      <p style={{ color: '#2563EB', fontSize: '14px', fontWeight: '600', marginBottom: '16px' }}>
+        {equipment.name} <span style={{ color: '#64748B', fontWeight: 'normal', fontSize: '12px' }}>(คงเหลือ: {equipment.availableQty} ชิ้น)</span>
+      </p>
 
-        {error && (
-          <div style={{
-            background: '#FEF2F2',
-            color: '#DC2626',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            marginBottom: '14px',
-            border: '1px solid #FCA5A5'
-          }}>
-            {error}
-          </div>
-        )}
+      <Notice>{error}</Notice>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>วันที่ต้องการยืม</label>
-            <input 
-              type="date" 
-              required
-              value={borrowDate}
-              onChange={(e) => setBorrowDate(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-            />
-          </div>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div>
+          <label htmlFor="bw-from" style={labelStyle}>วันที่ต้องการยืม</label>
+          <input id="bw-from" type="date" required min={today} value={borrowDate} onChange={(e) => handleBorrowDate(e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <label htmlFor="bw-to" style={labelStyle}>กำหนดวันคืน</label>
+          <input id="bw-to" type="date" required min={borrowDate ? addDays(borrowDate, 1) : today} value={returnDate} onChange={(e) => setReturnDate(e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <label htmlFor="bw-qty" style={labelStyle}>
+            จำนวนที่ต้องการยืม <span style={{ color: '#E11D48', fontWeight: 'normal' }}>(สูงสุดไม่เกิน {maxQty} ชิ้น)</span>
+          </label>
+          <input id="bw-qty" type="number" min="1" max={maxQty} required value={quantity} onChange={(e) => setQuantity(e.target.value)} style={inputStyle} />
+        </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>กำหนดวันคืน</label>
-            <input 
-              type="date" 
-              required
-              value={returnDate}
-              onChange={(e) => setReturnDate(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-              จำนวนที่ต้องการยืม <span style={{ color: '#E11D48', fontWeight: 'normal' }}>(สูงสุดไม่เกิน 3 ชิ้น)</span>
-            </label>
-            <input 
-              type="number" 
-              min="1" 
-              max="3"
-              required
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>วัตถุประสงค์ในการใช้งาน</label>
-            <textarea 
-              rows="2"
-              placeholder="ระบุวิชา หรือโปรเจกต์ที่ใช้งาน..."
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', resize: 'none' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{ flex: 1, padding: '10px', background: '#F1F5F9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="submit"
-              style={{ flex: 1, padding: '10px', background: '#2563EB', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
-            >
-              ยืนยันการยืม
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+          <button type="button" onClick={onClose} disabled={submitting} style={{ ...btnGhost, flex: 1 }}>ยกเลิก</button>
+          <button type="submit" disabled={submitting} style={{ ...btnPrimary, flex: 1, opacity: submitting ? 0.6 : 1 }}>
+            {submitting ? 'กำลังส่งคำขอ...' : 'ยืนยันการยืม'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

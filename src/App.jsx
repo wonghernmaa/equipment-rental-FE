@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import MyBorrowings from './pages/MyBorrowings';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminEquipments from './pages/AdminEquipments';
 
 export default function App() {
   return (
@@ -24,11 +25,15 @@ export default function App() {
             <Route path="/equipments" element={<Equipments />} />
             <Route path="/equipment/:id" element={<EquipmentDetail />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
             <Route path="/register" element={<Register />} />
 
             <Route path="/my-borrowings" element={
-              <ProtectedRoute>
+              <ProtectedRoute roles={['member', 'admin']}>
                 <MyBorrowings />
               </ProtectedRoute>
             } />
@@ -36,6 +41,12 @@ export default function App() {
             <Route path="/admin" element={
               <RequireRole allowedRole="admin">
                 <AdminDashboard />
+              </RequireRole>
+            } />
+
+            <Route path="/admin/equipments" element={
+              <RequireRole allowedRole="admin">
+                <AdminEquipments />
               </RequireRole>
             } />
           </Routes>

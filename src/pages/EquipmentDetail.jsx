@@ -1,41 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { mockEquipments } from '../data/mockEquipments';
+import * as api from '../api';
+import { LoadingState, ErrorState } from '../components/UIStates';
 import BorrowModal from '../components/BorrowModal';
 import AuthModal from '../components/AuthModal';
+import SafeImage from '../components/SafeImage';
 
 export default function EquipmentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canBorrow } = useAuth();
 
-  // ดึงข้อมูลอุปกรณ์ตาม ID
-  const equipment = mockEquipments.find(item => item.id === parseInt(id)) || mockEquipments[0];
+  const [equipment, setEquipment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+      setNotFound(false);
+    }
+    try {
+      setEquipment(await api.getEquipment(id));
+    } catch (e) {
+      if (e.status === 404 || e.code === 'BAD_ID') setNotFound(true);
+      else if (!silent) setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const [borrowModalOpen, setBorrowModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  // ข้อมูลจำลองรายการรีวิว
-  const [reviews] = useState([
-    { id: 1, userName: "กฤษฎา คงแก้ว", rating: 5, comment: "อุปกรณ์ใช้งานได้ดี สภาพใหม่ ไม่มีปัญหาเลยครับ", date: "2026-11-10" },
-    { id: 2, userName: "สมชาย สายลุย", rating: 4, comment: "แบตเตอรี่อึดตามสเปก แต่กระเป๋าหนักไปนิดนึง", date: "2026-11-05" }
-  ]);
-
   const handleBorrowClick = () => {
-    if (!user || user.role === 'guest') {
+    if (!canBorrow) {
       setAuthModalOpen(true);
     } else {
       setBorrowModalOpen(true);
     }
   };
 
+  if (loading) return <div style={{ maxWidth: '1040px', margin: '40px auto', padding: '0 20px' }}><LoadingState message="กำลังโหลดข้อมูลอุปกรณ์..." /></div>;
+  if (notFound) {
+    return (
+      <div style={{ maxWidth: '1040px', margin: '40px auto', padding: '0 20px' }}>
+        <ErrorState message="ไม่พบอุปกรณ์นี้ หรืออุปกรณ์ถูกลบออกจากระบบแล้ว" />
+        <button onClick={() => navigate('/equipments')} style={{ marginTop: '16px', background: '#FFFFFF', border: '1px solid #E2E8F0', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700' }}>⬅️ กลับไปรายการอุปกรณ์</button>
+      </div>
+    );
+  }
+  if (error || !equipment) {
+    return <div style={{ maxWidth: '1040px', margin: '40px auto', padding: '0 20px' }}><ErrorState message={error || 'โหลดข้อมูลไม่สำเร็จ'} onRetry={() => load()} /></div>;
+  }
+
   return (
     <div style={{ maxWidth: '1040px', margin: '40px auto', padding: '0 20px' }}>
       
       {/* ปุ่มย้อนกลับ */}
       <button 
-        onClick={() => navigate('/')}
+        onClick={() => navigate(-1)}
         style={{
           background: '#FFFFFF',
           border: '1px solid #E2E8F0',
@@ -53,7 +84,7 @@ export default function EquipmentDetail() {
           transition: 'transform 0.2s'
         }}
       >
-        ⬅️ ย้อนกลับหน้าแรก
+        ⬅️ ย้อนกลับ
       </button>
 
       {/* Main Detail Card */}
@@ -69,11 +100,7 @@ export default function EquipmentDetail() {
           
           {/* Image Container */}
           <div style={{ flex: '1 1 420px', height: '400px', background: '#F8FAFC', position: 'relative', overflow: 'hidden' }}>
-            <img 
-              src={equipment.image} 
-              alt={equipment.name} 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-            />
+            <SafeImage src={equipment.imageUrl} alt={equipment.name} iconSize={72} />
             <div style={{
               position: 'absolute',
               top: '16px',
@@ -113,12 +140,12 @@ export default function EquipmentDetail() {
               }}>
                 <div>
                   <span style={{ color: '#64748B', fontSize: '12px', display: 'block', marginBottom: '2px' }}>สต็อกทั้งหมด</span>
-                  <strong style={{ color: '#0F172A', fontSize: '16px' }}>{equipment.totalStock} ชิ้น</strong>
+                  <strong style={{ color: '#0F172A', fontSize: '16px' }}>{equipment.totalQty} ชิ้น</strong>
                 </div>
                 <div style={{ borderLeft: '1px solid #E2E8F0', paddingLeft: '24px' }}>
                   <span style={{ color: '#64748B', fontSize: '12px', display: 'block', marginBottom: '2px' }}>คงเหลือในคลัง</span>
-                  <strong style={{ color: equipment.availableStock > 0 ? '#16A34A' : '#DC2626', fontSize: '16px' }}>
-                    {equipment.availableStock > 0 ? `${equipment.availableStock} ชิ้น` : 'ของหมด'}
+                  <strong style={{ color: equipment.availableQty > 0 ? '#16A34A' : '#DC2626', fontSize: '16px' }}>
+                    {equipment.availableQty > 0 ? `${equipment.availableQty} ชิ้น` : 'ของหมด'}
                   </strong>
                 </div>
               </div>
@@ -126,7 +153,7 @@ export default function EquipmentDetail() {
 
             {/* Borrow Action Button */}
             <div style={{ marginTop: '32px' }}>
-              {equipment.availableStock > 0 ? (
+              {equipment.availableQty > 0 ? (
                 <button 
                   onClick={handleBorrowClick}
                   style={{
@@ -168,56 +195,9 @@ export default function EquipmentDetail() {
         </div>
       </div>
 
-      {/* Review Section */}
-      <div style={{ 
-        background: '#FFFFFF', 
-        padding: '36px', 
-        borderRadius: '24px', 
-        border: '1px solid #E2E8F0', 
-        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.03)' 
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '22px', color: '#0F172A', margin: 0, fontWeight: '800' }}>
-            ⭐ รีวิวประสบการณ์ใช้งาน ({reviews.length})
-          </h3>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {reviews.length > 0 ? (
-            reviews.map((rev) => (
-              <div 
-                key={rev.id} 
-                style={{ 
-                  padding: '20px', 
-                  borderRadius: '16px', 
-                  border: '1px solid #F1F5F9', 
-                  background: '#F8FAFC'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '18px' }}>👤</span>
-                    <strong style={{ color: '#0F172A', fontSize: '15px' }}>{rev.userName}</strong>
-                  </div>
-                  <span style={{ color: '#F59E0B', fontSize: '14px', background: '#FEF3C7', padding: '4px 10px', borderRadius: '12px', fontWeight: '700' }}>
-                    {'⭐'.repeat(rev.rating)}
-                  </span>
-                </div>
-                <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
-                  "{rev.comment}"
-                </p>
-                <span style={{ fontSize: '12px', color: '#94A3B8' }}>📅 วันที่รีวิว: {rev.date}</span>
-              </div>
-            ))
-          ) : (
-            <p style={{ color: '#94A3B8', fontSize: '14px', margin: 0 }}>ยังไม่มีรีวิวสำหรับอุปกรณ์ชิ้นนี้</p>
-          )}
-        </div>
-      </div>
-
       {/* Modals */}
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
-      <BorrowModal isOpen={borrowModalOpen} onClose={() => setBorrowModalOpen(false)} equipment={equipment} />
+      <BorrowModal isOpen={borrowModalOpen} onClose={() => setBorrowModalOpen(false)} equipment={equipment} onSuccess={() => load(true)} />
     </div>
   );
 }

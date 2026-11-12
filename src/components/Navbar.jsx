@@ -3,11 +3,12 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, isLoggedIn, canBorrow, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const isActive = (path) => location.pathname === path;
+  const onAdmin = location.pathname.startsWith('/admin');
 
   const navLinkStyle = (path) => ({
     color: isActive(path) ? '#38BDF8' : '#94A3B8',
@@ -57,29 +58,29 @@ export default function Navbar() {
           📦 อุปกรณ์ทั้งหมด
         </Link>
 
-        {user && user.role === 'member' && (
+        {canBorrow && (
           <Link to="/my-borrowings" style={navLinkStyle('/my-borrowings')}>
             📋 ประวัติการยืม
           </Link>
         )}
 
-        {user && user.role === 'admin' && (
+        {isAdmin && (
           <Link to="/admin" style={{ 
-            color: isActive('/admin') ? '#FFFFFF' : '#FDE047', 
-            background: isActive('/admin') ? '#EAB308' : 'rgba(253, 224, 71, 0.12)',
+            color: onAdmin ? '#FFFFFF' : '#FDE047', 
+            background: onAdmin ? '#EAB308' : 'rgba(253, 224, 71, 0.12)',
             border: '1px solid rgba(253, 224, 71, 0.4)',
             padding: '8px 16px',
             borderRadius: '20px',
             textDecoration: 'none', 
             fontWeight: '800', 
             fontSize: '13px',
-            boxShadow: isActive('/admin') ? '0 0 14px rgba(234, 179, 8, 0.4)' : 'none'
+            boxShadow: onAdmin ? '0 0 14px rgba(234, 179, 8, 0.4)' : 'none'
           }}>
             🛡️ หลังบ้าน Admin
           </Link>
         )}
 
-        {(!user || user.role === 'guest') ? (
+        {!isLoggedIn ? (
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: '12px' }}>
             <Link to="/login" style={{
               color: '#F8FAFC',
@@ -123,7 +124,7 @@ export default function Navbar() {
                 boxShadow: isActive('/profile') ? '0 0 12px rgba(56, 189, 248, 0.2)' : 'none'
               }}
             >
-              👤 {user.name || user.username} (<strong style={{ color: '#38BDF8' }}>{user.role}</strong>)
+              👤 {user.displayName} (<strong style={{ color: '#38BDF8' }}>{user.role}</strong>)
             </Link>
 
             <button 

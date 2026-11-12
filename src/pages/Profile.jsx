@@ -1,8 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import * as api from '../api';
+import { ROLE_LABEL } from '../constants';
+import { formatDateTime } from '../utils/format';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, canBorrow } = useAuth();
+  const [profile, setProfile] = useState(null); // ข้อมูลล่าสุดจาก GET /api/me (member/admin เท่านั้น)
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!canBorrow) return undefined;
+    let alive = true;
+    api.getMe().then((m) => alive && setProfile(m)).catch(() => {});
+    return () => { alive = false; };
+  }, [canBorrow]);
+
+  const me = profile || user;
 
   // State ควบคุมการเปิด-ปิด (Accordion) ของฟอร์มเปลี่ยนรหัสผ่าน
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
@@ -12,8 +26,9 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setMessage({ type: '', text: '' });
 
     if (newPassword !== confirmPassword) {
@@ -21,15 +36,23 @@ export default function Profile() {
       return;
     }
 
-    if (newPassword.length < 4) {
-      setMessage({ type: 'error', text: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 4 ตัวอักษร' });
+    if (newPassword.length < 8) {
+      setMessage({ type: 'error', text: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 8 ตัวอักษร' });
       return;
     }
 
-    setMessage({ type: 'success', text: '🔒 เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว!' });
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    setSaving(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      setMessage({ type: 'success', text: '🔒 เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว!' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message }); // เช่น รหัสผ่านเดิมไม่ถูกต้อง
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -68,7 +91,7 @@ export default function Profile() {
             MEMBER PROFILE
           </span>
           <h2 style={{ fontSize: '28px', margin: '8px 0 4px 0', fontWeight: '900', letterSpacing: '-0.5px' }}>
-            {user?.name || "สมาชิกผู้ใช้งาน"}
+            {me?.displayName || "สมาชิกผู้ใช้งาน"}
           </h2>
           <p style={{ color: '#94A3B8', fontSize: '14px', margin: 0 }}>
             สถานะบัญชี: <span style={{ color: '#34D399', fontWeight: '700' }}>● Active Member</span>
@@ -93,22 +116,35 @@ export default function Profile() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
               <span style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px', fontWeight: '700' }}>ชื่อ-นามสกุล</span>
-              <strong style={{ color: '#0F172A', fontSize: '15px' }}>{user?.name || "-"}</strong>
+              <strong style={{ color: '#0F172A', fontSize: '15px' }}>{me?.displayName || "-"}</strong>
             </div>
             
             <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
-              <span style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px', fontWeight: '700' }}>อีเมล หรือ Username ที่ใช้ลงทะเบียน</span>
-              <strong style={{ color: '#0F172A', fontSize: '15px' }}>{user?.email || user?.username || "-"}</strong>
+              <span style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px', fontWeight: '700' }}>อีเมลที่ใช้ลงทะเบียน</span>
+              <strong style={{ color: '#0F172A', fontSize: '15px' }}>{me?.email || "-"}</strong>
             </div>
 
             <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
               <span style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px', fontWeight: '700' }}>สิทธิ์การใช้งานระบบ</span>
-              <strong style={{ color: '#0284C7', fontSize: '15px' }}>{user?.role === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : 'สมาชิกทั่วไป (Member)'}</strong>
+              <strong style={{ color: '#0284C7', fontSize: '15px' }}>{ROLE_LABEL[me?.role] || '-'}</strong>
             </div>
+
+            {profile?.createdAt && (
+              <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px', fontWeight: '700' }}>สมัครสมาชิกเมื่อ</span>
+                <strong style={{ color: '#0F172A', fontSize: '15px' }}>{formatDateTime(profile.createdAt)}</strong>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Change Password Card (Accordion Style) */}
+        {!canBorrow ? (
+          <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', padding: '20px 24px', borderRadius: '20px', fontSize: '14px', lineHeight: 1.6 }}>
+            บัญชีผู้เยี่ยมชม (Guest) ดูรายการอุปกรณ์ได้อย่างเดียว ไม่สามารถเปลี่ยนรหัสผ่านหรือยืมอุปกรณ์ได้
+            หากต้องการใช้งานเต็มรูปแบบ กรุณาสมัครสมาชิกแบบ Member
+          </div>
+        ) : (
         <div style={{
           background: '#FFFFFF',
           padding: '28px 32px',
@@ -262,7 +298,9 @@ export default function Profile() {
                   </button>
                   <button 
                     type="submit"
+                    disabled={saving}
                     style={{
+                      opacity: saving ? 0.6 : 1,
                       padding: '12px 24px',
                       background: 'linear-gradient(135deg, #0284C7 0%, #38BDF8 100%)',
                       color: '#FFFFFF',
@@ -274,13 +312,14 @@ export default function Profile() {
                       boxShadow: '0 8px 20px rgba(56, 189, 248, 0.3)'
                     }}
                   >
-                    💾 บันทึกรหัสผ่านใหม่
+                    {saving ? 'กำลังบันทึก...' : '💾 บันทึกรหัสผ่านใหม่'}
                   </button>
                 </div>
               </form>
             </div>
           )}
         </div>
+        )}
 
       </div>
     </div>
