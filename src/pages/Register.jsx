@@ -6,7 +6,6 @@ export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('member'); // BE รับเฉพาะ member / guest (admin ตั้งผ่าน SQL เท่านั้น)
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -17,13 +16,17 @@ export default function Register() {
     e.preventDefault();
     if (submitting) return;
     setErrorMsg('');
+    if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(email.trim())) {
+      setErrorMsg('รูปแบบอีเมลไม่ถูกต้อง ต้องมี @ และโดเมน เช่น name@example.com');
+      return;
+    }
     if (password.length < 8) {
       setErrorMsg('รหัสผ่านต้องยาว 8 ตัวอักษรขึ้นไป');
       return;
     }
     setSubmitting(true);
     try {
-      await register({ email: email.trim(), password, displayName: name.trim(), role });
+      await register({ email: email.trim(), password, displayName: name.trim() }); // ไม่ส่ง role: BE กำหนดเป็น member ให้เอง (admin ตั้งผ่าน SQL เท่านั้น)
     } catch (err) {
       setErrorMsg(err.message); // เช่น EMAIL_TAKEN, BAD_EMAIL
       setSubmitting(false);
@@ -131,18 +134,6 @@ export default function Register() {
               }}
               required
             />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>ประเภทบัญชี</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', background: '#F8FAFC', boxSizing: 'border-box', cursor: 'pointer' }}
-            >
-              <option value="member">สมาชิก (Member) — ยืมอุปกรณ์ได้</option>
-              <option value="guest">ผู้เยี่ยมชม (Guest) — ดูอุปกรณ์ได้อย่างเดียว</option>
-            </select>
           </div>
 
           <div style={{ marginBottom: '24px' }}>
